@@ -252,6 +252,14 @@
     </managed-property>
   </managed-bean>
   
+  <!-- Provenance Beans -->
+  <managed-bean>
+  	<description>Publisher of Resource</description>
+  	<managed-bean-name>ProvenanceController</managed-bean-name>
+  	<managed-bean-class>com.esri.gpt.catalog.provenance.ProvenanceController</managed-bean-class>
+  	<managed-bean-scope>request</managed-bean-scope>
+  </managed-bean>
+  
   <!-- Search Beans -->
   <managed-bean>
   	<description>Controller for search.</description>
@@ -727,6 +735,15 @@
     <navigation-case>
       <from-outcome>catalog.search.resource.relationships</from-outcome>
       <to-view-id>/catalog/search/resource/relationships.jsp</to-view-id>
+      <redirect/>
+    </navigation-case>
+  </navigation-rule>
+  
+  <!-- provenance page -->
+  <navigation-rule>
+    <navigation-case>
+      <from-outcome>catalog.search.resource.provenance</from-outcome>
+      <to-view-id>/catalog/search/resource/provenance.jsp</to-view-id>
       <redirect/>
     </navigation-case>
   </navigation-rule>

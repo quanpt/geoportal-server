@@ -48,11 +48,13 @@
 	String rnpPreviewUrl = "";
 	String rnpReviewUrl = "";
 	String rnpRelationshipsUrl = "";
+	String rnpProvenanceUrl = "";
 
 	private void makeUrls(String url, String queryString){
 		rnpDetailUrl = com.esri.gpt.framework.util.Val.escapeXmlForBrowser(url + "/catalog/search/resource/details.page?" + queryString);
 		rnpReviewUrl = com.esri.gpt.framework.util.Val.escapeXmlForBrowser(url + "/catalog/search/resource/review.page?" + queryString);
 		rnpRelationshipsUrl = com.esri.gpt.framework.util.Val.escapeXmlForBrowser(url + "/catalog/search/resource/relationships.page?" + queryString);
+		rnpProvenanceUrl = com.esri.gpt.framework.util.Val.escapeXmlForBrowser(url + "/catalog/search/resource/provenance.page?" + queryString);
 	}	
 %>
 <script>
@@ -67,6 +69,8 @@ function rnpInit(){
 		element = document.getElementById("rnpDetails");
 	}else if(winUrl != null && winUrl.indexOf("catalog/search/resource/relationships.page") > 0){
 		element = document.getElementById("rnpRelationships");
+	}else if(winUrl != null && winUrl.indexOf("catalog/search/resource/provenance.page") > 0){
+		element = document.getElementById("rnpProvenance");
 	}
 
 	if(element != null) {
@@ -143,4 +147,5 @@ if (typeof(dojo) != 'undefined') {
 	<a id="rnpReview" style="display:none" href="<%=rnpReviewUrl %>"><%=com.esri.gpt.framework.jsf.PageContext.extractMessageBroker().retrieveMessage("catalog.search.resource.review.title")%></a>
 	<a id="rnpRelationships" style="display:none" href="<%=rnpRelationshipsUrl %>"><%=com.esri.gpt.framework.jsf.PageContext.extractMessageBroker().retrieveMessage("catalog.search.resource.relationships.title")%></a>
 	<a id="rnpPreview" style="display:none" href="<%=rnpPreviewUrl %>"><%=com.esri.gpt.framework.jsf.PageContext.extractMessageBroker().retrieveMessage("catalog.search.liveData.title")%></a>	
+	<a id="rnpProvenance" href="<%=rnpProvenanceUrl %>"><%=com.esri.gpt.framework.jsf.PageContext.extractMessageBroker().retrieveMessage("catalog.search.resource.provenance.title")%></a>
 </f:verbatim>
