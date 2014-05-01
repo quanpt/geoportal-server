@@ -23,10 +23,36 @@
 %>
 
 <% // bind detail sections %>
-<h:panelGroup binding="#{ProvenanceController.publisherPanelGroup}"/>
+<h:panelGrid id="Publisher" columns="2" border="0"
+   cellpadding="10" cellspacing="1">
+      <f:facet name="header">
+         <h:outputText value="Publisher"/>
+      </f:facet>
+      <h:outputLabel value="Email" />
+      <h:outputText value="" />
+      <h:outputLabel value="Name" />
+      <h:outputText value="#{ProvenanceController.record.ownerName}" />
+      <h:outputLabel value="Organization" />
+      <h:outputText value="" />
+      <h:outputLabel value="Affiliation" />
+      <h:outputText value="" />
+</h:panelGrid>
+
+<h:panelGrid id="Repository1" columns="2" border="0"
+   cellpadding="10" cellspacing="1">
+      <f:facet name="header">
+         <h:outputText value="Repository"/>
+      </f:facet>
+      <h:outputLabel value="Title" />
+      <h:outputText value="" />
+      <h:outputLabel value="UUID" />
+      <h:outputText value="#{ProvenanceController.record.siteUuid}" />
+      <h:outputLabel value="Follow" />
+      <h:outputText value="" />
+</h:panelGrid>
 
 <% // button section %>
 <f:verbatim>
-  <!--iframe class="section" src="<%=sRestUrl%>" width="100%" scrolling="no" frameborder="0"></iframe-->
+  <iframe class="section" src="<%=sRestUrl%>" width="100%" scrolling="no" frameborder="0"></iframe>
   <span class="note"><%=sRestUrl%></span>
 </f:verbatim>
