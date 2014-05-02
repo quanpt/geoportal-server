@@ -24,32 +24,49 @@
 
 <% // bind detail sections %>
 <h:panelGrid id="Publisher" columns="2" border="0"
-   cellpadding="10" cellspacing="1">
+   cellpadding="4" cellspacing="4">
       <f:facet name="header">
          <h:outputText value="Publisher"/>
       </f:facet>
       <h:outputLabel value="Email" />
       <h:outputText value="" />
       <h:outputLabel value="Name" />
-      <h:outputText value="#{ProvenanceController.record.ownerName}" />
+      <h:outputText value="#{ProvenanceController.query.record.ownerName}" />
       <h:outputLabel value="Organization" />
       <h:outputText value="" />
       <h:outputLabel value="Affiliation" />
       <h:outputText value="" />
 </h:panelGrid>
 
-<h:panelGrid id="Repository1" columns="2" border="0"
-   cellpadding="10" cellspacing="1">
-      <f:facet name="header">
-         <h:outputText value="Repository"/>
-      </f:facet>
-      <h:outputLabel value="Title" />
-      <h:outputText value="" />
-      <h:outputLabel value="UUID" />
-      <h:outputText value="#{ProvenanceController.record.siteUuid}" />
-      <h:outputLabel value="Follow" />
-      <h:outputText value="" />
-</h:panelGrid>
+<h:dataTable id="mmdRecords"
+	value="#{ProvenanceController.query.ancesters}" var="record"
+	cellspacing="2" cellpadding="10">
+	<f:facet name="header">
+		<h:outputText value="Repositories" />
+	</f:facet>
+	<h:column>
+		<h:panelGrid id="Repository1" columns="2" border="0" cellpadding="4"
+			cellspacing="4">
+			<h:outputLabel value="Title" />
+			<h:outputText value="#{record.title }" />
+			<h:outputLabel value="File Identifier" />
+			<h:outputText value="#{record.fileIdentifier }" />
+			<h:outputLabel value="Source Uri" rendered="#{not empty record.sourceUri}"/>
+			<h:outputLink value="#{record.sourceUri}" rendered="#{not empty record.sourceUri}">
+				<h:outputText value="#{record.sourceUri}" />
+			</h:outputLink>
+			<h:outputLabel value="Host Url" rendered="#{not empty record.hostUrl}"/>
+			<h:outputLink value="#{record.hostUrl}" rendered="#{not empty record.hostUrl}">
+				<h:outputText value="#{record.hostUrl}" />
+			</h:outputLink>
+			<h:outputLabel value="UUID" />
+			<h:outputLink>
+				<f:param name="uuid" value="#{record.uuid}" />
+				<h:outputText value="#{record.uuid}" />
+			</h:outputLink>
+		</h:panelGrid>
+	</h:column>
+</h:dataTable>
 
 <% // button section %>
 <f:verbatim>

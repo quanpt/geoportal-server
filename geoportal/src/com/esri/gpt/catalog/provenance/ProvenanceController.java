@@ -1,54 +1,29 @@
 package com.esri.gpt.catalog.provenance;
 
-import java.io.IOException;
 import java.util.Map;
 import java.util.logging.Logger;
 
-import javax.faces.component.html.HtmlOutputText;
-import javax.faces.component.html.HtmlPanelGroup;
 import javax.servlet.http.HttpServletRequest;
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.xpath.XPathExpressionException;
 
-import org.xml.sax.SAXException;
-
-import com.esri.gpt.catalog.management.MmdRecord;
-import com.esri.gpt.catalog.schema.SchemaException;
-import com.esri.gpt.catalog.search.SearchException;
-import com.esri.gpt.control.search.SearchController;
 import com.esri.gpt.framework.context.RequestContext;
 import com.esri.gpt.framework.jsf.BaseActionListener;
 import com.esri.gpt.framework.jsf.MessageBroker;
 
 public class ProvenanceController extends BaseActionListener {
 
-	private static final Logger LOG = Logger.getLogger(SearchController.class
+	private static final Logger LOG = Logger.getLogger(ProvenanceController.class
 			.getCanonicalName());
 
 	/** The search result. */
-	private MmdRecord record;
+	private ProvenanceQuery query;
 
-	public MmdRecord getRecord() {
-		return record;
-	}
-
-	public void setRecord(MmdRecord record) {
-		this.record = record;
-	}
-
-	private HtmlPanelGroup publisherPanelGroup;
-
-	public HtmlPanelGroup getPublisherPanelGroup() {
-		return publisherPanelGroup;
-	}
-
-	public void setPublisherPanelGroup(HtmlPanelGroup publisherPanelGroup) {
-		this.publisherPanelGroup = publisherPanelGroup;
+	public ProvenanceQuery getQuery() {
+		return query;
 	}
 
 	/**
 	 * Does process request parameters. It is used to process 'uuid' parameter
-	 * to fetch metadata details.
+	 * to fetch metadata provenance.
 	 * 
 	 * @return empty string
 	 */
@@ -72,8 +47,7 @@ public class ProvenanceController extends BaseActionListener {
 			if (parameterMap.containsKey("uuid")) {
 				Object oUuid = parameterMap.get("uuid");
 				if (oUuid instanceof String[] && ((String[]) oUuid).length > 0) {
-					processSearchUuid(context, ((String[]) oUuid)[0],
-							catalogUrl);
+					executeSearch(context, ((String[]) oUuid)[0]);
 				}
 			}
 
@@ -84,31 +58,6 @@ public class ProvenanceController extends BaseActionListener {
 		}
 
 		return "";
-	}
-
-	private void processSearchUuid(RequestContext context, String uuid,
-			String catalogUrl) throws SearchException, SchemaException,
-			XPathExpressionException, IOException,
-			ParserConfigurationException, SAXException, Exception {
-
-		if (publisherPanelGroup != null) {
-			publisherPanelGroup.getChildren().clear();
-		} else {
-			publisherPanelGroup = new HtmlPanelGroup();
-		}
-		if (uuid == null || "".equals(uuid)) {
-			throw new SearchException(
-					"UUID given for document requested is either null or empty");
-		}
-		String getPublisherText = "TODO"; // this.getPublisherText(uuid);
-		HtmlOutputText component = new HtmlOutputText();
-		component.setId("xsltBasedDetails");
-		component.setValue(getPublisherText);
-		component.setEscape(false);
-		publisherPanelGroup.getChildren().add(component);
-
-		// always execute the search for metadata records
-		executeSearch(context, uuid);
 	}
 
 	/**
@@ -126,9 +75,8 @@ public class ProvenanceController extends BaseActionListener {
 		MessageBroker msgBroker = extractMessageBroker();
 		LOG.info("here6");
 		// execute the request
-		ProvenanceQuery request;
-		request = new ProvenanceQuery(context);
-		request.execute(uuid);
-		record = request.getRecords();
+		
+		query = new ProvenanceQuery(context);
+		query.execute(uuid);
 	}
 }
