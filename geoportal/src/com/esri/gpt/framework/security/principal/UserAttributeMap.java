@@ -108,7 +108,7 @@ public void add(UserAttribute member) {
  * @param key the key associated with the value
  * @return the value associated with the key
  */
-private String getValue(String key) {
+public String getValue(String key) {
   UserAttribute attr = get(key);
   if (attr != null) {
     return attr.getValue();

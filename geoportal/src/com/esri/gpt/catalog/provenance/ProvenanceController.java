@@ -73,7 +73,6 @@ public class ProvenanceController extends BaseActionListener {
 	private void executeSearch(RequestContext context, String uuid)
 			throws Exception {
 		MessageBroker msgBroker = extractMessageBroker();
-		LOG.info("here6");
 		// execute the request
 		
 		query = new ProvenanceQuery(context);

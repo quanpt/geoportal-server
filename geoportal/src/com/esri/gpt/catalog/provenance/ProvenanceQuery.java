@@ -1,6 +1,8 @@
 package com.esri.gpt.catalog.provenance;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -11,6 +13,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.naming.NamingException;
+import javax.servlet.http.HttpServletRequest;
 import javax.xml.parsers.ParserConfigurationException;
 
 import org.xml.sax.SAXException;
@@ -22,17 +25,29 @@ import com.esri.gpt.catalog.management.MmdRequest;
 import com.esri.gpt.control.webharvest.protocol.ProtocolParseException;
 import com.esri.gpt.framework.collection.StringAttributeMap;
 import com.esri.gpt.framework.context.RequestContext;
+import com.esri.gpt.framework.security.credentials.CredentialsDeniedException;
+import com.esri.gpt.framework.security.credentials.DistinguishedNameCredential;
+import com.esri.gpt.framework.security.credentials.UsernameCredential;
+import com.esri.gpt.framework.security.identity.IdentityAdapter;
+import com.esri.gpt.framework.security.identity.IdentityConfiguration;
 import com.esri.gpt.framework.security.identity.IdentityException;
+import com.esri.gpt.framework.security.identity.ldap.LdapConfiguration;
+import com.esri.gpt.framework.security.identity.ldap.LdapIdentityAdapter;
 import com.esri.gpt.framework.security.metadata.MetadataAcl;
 import com.esri.gpt.framework.security.principal.Groups;
+import com.esri.gpt.framework.security.principal.User;
+import com.esri.gpt.framework.security.principal.UserAttributeMap;
 import com.esri.gpt.framework.sql.ManagedConnection;
 import com.esri.gpt.framework.util.DateProxy;
 import com.esri.gpt.framework.util.Val;
 
 public class ProvenanceQuery extends MmdRequest {
-
+	
+	private RequestContext context;
+	
 	protected ProvenanceQuery(RequestContext requestContext) {
 		super(requestContext, null, null, null);
+		this.context = requestContext;
 	}
 
 	// class variables
@@ -40,6 +55,7 @@ public class ProvenanceQuery extends MmdRequest {
 	private static final Logger LOGGER = Logger.getLogger(ProvenanceQuery.class
 			.getCanonicalName());
 
+	private String userDIT = "ou=users,ou=system";
 	private Groups allGroups = null;
 	private String tblImsUser;
 	private ProvenanceRecord record;
@@ -83,7 +99,7 @@ public class ProvenanceQuery extends MmdRequest {
 			s.equalsIgnoreCase("true");
 
 			// username query
-			String sqlUser = "SELECT USERNAME FROM " + tblImsUser
+			String sqlUser = "SELECT USERNAME, DN FROM " + tblImsUser
 					+ " WHERE USERID=?";
 
 			// start the SQL expression
@@ -111,24 +127,28 @@ public class ProvenanceQuery extends MmdRequest {
 				
 				// execute the query
 				logExpression(sbSql.toString());
-				LOGGER.info(sbSql.toString() + uuid);
 				ResultSet rs = st.executeQuery();
 	
 				if (rs.next()) {
+					tmpRecord = new ProvenanceRecord();
 					// find the username of the owner
 					int nUserid = rs.getInt(4);
 					String sUsername = "";
-	//				stUser.clearParameters();
-					stUser.setInt(1, nUserid);
-					ResultSet rs2 = stUser.executeQuery();
-					if (rs2.next())
-						sUsername = Val.chkStr(rs2.getString(1));
-					if (sUsername.length() == 0)
-						sUsername = "" + nUserid;
-					rs2.close();
+					String sUserDN = "";
+					if (n==0) { // only need to do it once
+						stUser.setInt(1, nUserid);
+						ResultSet rs2 = stUser.executeQuery();
+						if (rs2.next()) {
+							sUsername = Val.chkStr(rs2.getString(1));
+							sUserDN = Val.chkStr(rs2.getString(2));
+							readUserInfo(tmpRecord, sUserDN);
+						}
+						if (sUsername.length() == 0)
+							sUsername = "" + nUserid;
+						rs2.close();
+					}
 	
 					try {
-						tmpRecord = new ProvenanceRecord();
 						readRecord(rs, tmpRecord, sUsername);
 					} catch (Exception ex) {
 						LOGGER.log(Level.WARNING, "Error reading record.", ex);
@@ -140,6 +160,7 @@ public class ProvenanceQuery extends MmdRequest {
 						ancesters.add(tmpRecord);
 					n++;
 					uuid = tmpRecord.getSiteUuid();
+					rs.close();
 					closeStatement(st);
 				} else 
 					break;
@@ -220,5 +241,60 @@ public class ProvenanceQuery extends MmdRequest {
 
 	public ProvenanceRecord getRecord() {
 		return record;
+	}
+
+	private void readUserInfo(ProvenanceRecord aRecord, String sUserDN) {
+		try {
+			User user = readUserProfile(sUserDN);
+			UserAttributeMap profile = user.getProfile();
+			aRecord.setEmail(profile.getEmailAddress());
+			aRecord.setDisplayName(profile.getValue("displayName"));
+			aRecord.setAffi(profile.getValue("affiliation"));
+			aRecord.setOrg(profile.getValue("organization"));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
+	/**
+	 * Reads user profile from ldap.
+	 * @param context the current request context (contains the active user)
+	 * @param request HTTP request.
+	 * @return user the user whose profile was read
+	 * @throws IdentityException if a system error occurs preventing the action
+	 * @throws NamingException if an LDAP naming exception occurs
+	 * @throws SQLException if a database communication exception occurs
+	 * @throws CredentialsDeniedException 
+	 * @throws UnsupportedEncodingException 
+	 */
+	protected User readUserProfile(String sUserDN) 
+			throws Exception {
+		
+		IdentityAdapter idAdapter = this.context.newIdentityAdapter();
+		IdentityConfiguration idConfig = this.context.getIdentityConfiguration();
+		User user = new User();
+		
+		if(idConfig != null){
+			LdapConfiguration ldapConfig = idConfig.getLdapConfiguration();
+			if(ldapConfig != null){
+			    userDIT = ldapConfig.getUserProperties().getUserSearchDIT();
+			}
+		}
+
+		if(sUserDN != null && sUserDN != "") {
+			String userIdentifier = sUserDN;
+			if(userIdentifier.endsWith(userDIT)){
+				user.setDistinguishedName(userIdentifier);
+				DistinguishedNameCredential dnCredential = new DistinguishedNameCredential();
+				dnCredential.setDistinguishedName(userIdentifier);
+				user.setCredentials(dnCredential);
+			}else if(userIdentifier.length() > 0) {
+				user.setCredentials(new UsernameCredential(userIdentifier));
+			}
+			((LdapIdentityAdapter)idAdapter).populateUser(context, user);
+			return user;
+		}else{		
+			throw new Exception("error");	
+		}
 	}
 }

@@ -29,13 +29,13 @@
          <h:outputText value="Publisher"/>
       </f:facet>
       <h:outputLabel value="Email" />
-      <h:outputText value="" />
+      <h:outputText value="#{ProvenanceController.query.record.email}" />
       <h:outputLabel value="Name" />
-      <h:outputText value="#{ProvenanceController.query.record.ownerName}" />
+      <h:outputText value="#{ProvenanceController.query.record.displayName}" />
       <h:outputLabel value="Organization" />
-      <h:outputText value="" />
+      <h:outputText value="#{ProvenanceController.query.record.org}" />
       <h:outputLabel value="Affiliation" />
-      <h:outputText value="" />
+      <h:outputText value="#{ProvenanceController.query.record.affi}" />
 </h:panelGrid>
 
 <h:dataTable id="mmdRecords"
