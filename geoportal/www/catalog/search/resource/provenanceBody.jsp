@@ -76,14 +76,17 @@
 	</h:column>
 </h:dataTable>
 
+<h:outputText value="No Derived Resources."
+	rendered="#{empty ProvenanceController.query.children}" />
+
 <h:dataTable id="childrenRecords"
 	value="#{ProvenanceController.query.children}" var="record"
 	cellspacing="2" cellpadding="5"
 	rendered="#{not empty ProvenanceController.query.children}">
 	<f:facet name="header">
 		<h:outputText
-			value="Sample Derived Resources 
-			(#{ProvenanceController.query.childDisplay} sample(s) from 
+			value="Sample Derived Resources - 
+			#{ProvenanceController.query.childDisplay} sample(s) from 
 			#{ProvenanceController.query.childCount} resource(s))" />
 	</f:facet>
 	<h:column>
