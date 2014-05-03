@@ -104,6 +104,6 @@
 	// button section
 %>
 <f:verbatim>
-  <iframe class="section" src=sRestUrl"<%%>" width="100%" scrolling="no" frameborder="0"></iframe>
+  <iframe class="section" src="<%=sRestUrl%>" width="100%" scrolling="no" frameborder="0"></iframe>
   <span class="note"><%=sRestUrl%></span>
 </f:verbatim>
