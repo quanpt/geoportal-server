@@ -7,6 +7,7 @@ public class ProvenanceRecord extends MmdRecord {
 	private String _sourceUri = "";
 	
 	// user info
+	private int    _userId = 0;
 	private String _displayName = "";
 	private String _email = "";
 	private String _org = "";
@@ -26,6 +27,14 @@ public class ProvenanceRecord extends MmdRecord {
 
 	public void setSourceUri(String _sourceUri) {
 		this._sourceUri = _sourceUri;
+	}
+
+	public int getUserId() {
+		return _userId;
+	}
+
+	public void setUserId(int _userId) {
+		this._userId = _userId;
 	}
 
 	public String getDisplayName() {

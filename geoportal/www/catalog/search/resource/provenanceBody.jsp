@@ -38,14 +38,15 @@
       <h:outputText value="#{ProvenanceController.query.record.affi}" />
 </h:panelGrid>
 
-<h:dataTable id="mmdRecords"
+<h:dataTable id="ancesterRecords"
 	value="#{ProvenanceController.query.ancesters}" var="record"
-	cellspacing="2" cellpadding="10">
+	cellspacing="2" cellpadding="10"
+	rendered="#{not empty ProvenanceController.query.ancesters}">
 	<f:facet name="header">
-		<h:outputText value="Repositories" />
+		<h:outputText value="Acquired from Repositories" />
 	</f:facet>
 	<h:column>
-		<h:panelGrid id="Repository1" columns="2" border="0" cellpadding="4"
+		<h:panelGrid columns="2" border="0" cellpadding="4"
 			cellspacing="4">
 			<h:outputLabel value="Title" />
 			<h:outputText value="#{record.title }" />
@@ -68,8 +69,41 @@
 	</h:column>
 </h:dataTable>
 
-<% // button section %>
+<h:dataTable id="childrenRecords"
+	value="#{ProvenanceController.query.children}" var="record"
+	cellspacing="2" cellpadding="5"
+	rendered="#{not empty ProvenanceController.query.children}">
+	<f:facet name="header">
+		<h:outputText value="Sample Derived Resources" />
+	</f:facet>
+	<h:column>
+		<h:panelGrid columns="2" border="0" cellpadding="1"
+			cellspacing="1">
+			<h:outputLabel value="Title" />
+			<h:outputText value="#{record.title }" />
+			<h:outputLabel value="File Identifier" />
+			<h:outputText value="#{record.fileIdentifier }" />
+			<h:outputLabel value="Source Uri" rendered="#{not empty record.sourceUri}"/>
+			<h:outputLink value="#{record.sourceUri}" rendered="#{not empty record.sourceUri}">
+				<h:outputText value="#{record.sourceUri}" />
+			</h:outputLink>
+			<h:outputLabel value="Host Url" rendered="#{not empty record.hostUrl}"/>
+			<h:outputLink value="#{record.hostUrl}" rendered="#{not empty record.hostUrl}">
+				<h:outputText value="#{record.hostUrl}" />
+			</h:outputLink>
+			<h:outputLabel value="UUID" />
+			<h:outputLink>
+				<f:param name="uuid" value="#{record.uuid}" />
+				<h:outputText value="#{record.uuid}" />
+			</h:outputLink>
+		</h:panelGrid>
+	</h:column>
+</h:dataTable>
+
+<%
+	// button section
+%>
 <f:verbatim>
-  <iframe class="section" src="<%=sRestUrl%>" width="100%" scrolling="no" frameborder="0"></iframe>
+  <iframe class="section" src=sRestUrl"<%%>" width="100%" scrolling="no" frameborder="0"></iframe>
   <span class="note"><%=sRestUrl%></span>
 </f:verbatim>

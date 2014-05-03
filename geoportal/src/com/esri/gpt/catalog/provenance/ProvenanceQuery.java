@@ -44,6 +44,7 @@ import com.esri.gpt.framework.util.Val;
 public class ProvenanceQuery extends MmdRequest {
 	
 	private RequestContext context;
+	private Connection con;
 	
 	protected ProvenanceQuery(RequestContext requestContext) {
 		super(requestContext, null, null, null);
@@ -60,6 +61,7 @@ public class ProvenanceQuery extends MmdRequest {
 	private String tblImsUser;
 	private ProvenanceRecord record;
 	private ArrayList<ProvenanceRecord> ancesters;
+	private ArrayList<ProvenanceRecord> children;
 
 	public ArrayList<ProvenanceRecord> getAncesters() {
 		return ancesters;
@@ -69,109 +71,121 @@ public class ProvenanceQuery extends MmdRequest {
 		this.ancesters = ancesters;
 	}
 
+	/**
+	 * @return the children
+	 */
+	public ArrayList<ProvenanceRecord> getChildren() {
+		return children;
+	}
+
+	/**
+	 * @param children the children to set
+	 */
+	public void setChildren(ArrayList<ProvenanceRecord> children) {
+		this.children = children;
+	}
+
 	public void execute(String uuid) throws SQLException, IdentityException,
 			NamingException, ParserConfigurationException, SAXException,
 			IOException {
 
-		// intitalize
-		int n=0;
-		ProvenanceRecord tmpRecord = null;
-		PreparedStatement st = null;
-		PreparedStatement stUser = null;
-//		new ImsMetadataAdminDao(getRequestContext());
+		// === prepare GLOBAL variables ===
 		tblImsUser = getRequestContext().getCatalogConfiguration()
 				.getUserTableName();
+		// establish the connection
+		ManagedConnection mc = returnConnection();
+		con = mc.getJdbcConnection();
+		// === done preparation ===
 
-		try {
+		// start the SQL expression
+		StringBuilder sbSql = new StringBuilder();
+		sbSql.append("SELECT A.TITLE,A.DOCUUID,A.SITEUUID,A.OWNER");
+		sbSql.append(",A.APPROVALSTATUS,A.PUBMETHOD,A.UPDATEDATE,A.ACL");
+		sbSql.append(",A.ID,A.HOST_URL,A.FREQUENCY,A.SEND_NOTIFICATION,A.PROTOCOL");
+		sbSql.append(",A.FINDABLE,A.SEARCHABLE,A.SYNCHRONIZABLE");
+		sbSql.append(",A.FILEIDENTIFIER, A.SOURCEURI");
+		sbSql.append(" FROM ").append(getResourceTableName()).append(" A");
+		
+		String ancesterSql = sbSql.toString() + " WHERE A.DOCUUID = ?";
+		String childrenSql = sbSql.toString() + " WHERE A.SITEUUID = ?";
 
-			// establish the connection
-			ManagedConnection mc = returnConnection();
-			Connection con = mc.getJdbcConnection();
+		readAncesters(ancesterSql, uuid);
+		readChildren(childrenSql, uuid);
+		readUserInfo(record);
+	}
 
-			// determine if the database is case sensitive
-			StringAttributeMap params = getRequestContext()
-					.getCatalogConfiguration().getParameters();
-			String s = Val.chkStr(params.getValue("database.isCaseSensitive"));
-			boolean isDbCaseSensitive = !s.equalsIgnoreCase("false");
+	private void readChildren(String childrenSql, String uuid) throws SQLException {
+		ProvenanceRecord tmpRecord = null;
+		PreparedStatement st = null;
+		int n = 0;
+		// re-initialize this array
+		children = new ArrayList<ProvenanceRecord>();
+		
+		// prepare the statements
+		st = con.prepareStatement(childrenSql);
+		st.setString(1, uuid);
+		
+		// execute the query
+		logExpression(childrenSql);
+		ResultSet rs = st.executeQuery();
 
-			s = Val.chkStr(params
-					.getValue("catalog.enableEditForAllPubMethods"));
-			s.equalsIgnoreCase("true");
+		while (rs.next() && n < 5) {
+			tmpRecord = new ProvenanceRecord();
 
-			// username query
-			String sqlUser = "SELECT USERNAME, DN FROM " + tblImsUser
-					+ " WHERE USERID=?";
-
-			// start the SQL expression
-			StringBuilder sbSql = new StringBuilder();
-			sbSql.append("SELECT A.TITLE,A.DOCUUID,A.SITEUUID,A.OWNER");
-			sbSql.append(",A.APPROVALSTATUS,A.PUBMETHOD,A.UPDATEDATE,A.ACL");
-			sbSql.append(",A.ID,A.HOST_URL,A.FREQUENCY,A.SEND_NOTIFICATION,A.PROTOCOL");
-			sbSql.append(",A.FINDABLE,A.SEARCHABLE,A.SYNCHRONIZABLE");
-			sbSql.append(",A.FILEIDENTIFIER, A.SOURCEURI");
-
-			// append from clause
-			sbSql.append(" FROM ").append(getResourceTableName()).append(" A");
-			
-			// append the where clause expressions
-			sbSql.append(" WHERE A.DOCUUID = ?");
-
-			// re-initialize this array
-			ancesters = new ArrayList<ProvenanceRecord>();
-			
-			while (uuid != null && uuid != "" && n < 10) {
-				// prepare the statements
-				st = con.prepareStatement(sbSql.toString());
-				st.setString(1, uuid);
-				stUser = con.prepareStatement(sqlUser);
-				
-				// execute the query
-				logExpression(sbSql.toString());
-				ResultSet rs = st.executeQuery();
-	
-				if (rs.next()) {
-					tmpRecord = new ProvenanceRecord();
-					// find the username of the owner
-					int nUserid = rs.getInt(4);
-					String sUsername = "";
-					String sUserDN = "";
-					if (n==0) { // only need to do it once
-						stUser.setInt(1, nUserid);
-						ResultSet rs2 = stUser.executeQuery();
-						if (rs2.next()) {
-							sUsername = Val.chkStr(rs2.getString(1));
-							sUserDN = Val.chkStr(rs2.getString(2));
-							readUserInfo(tmpRecord, sUserDN);
-						}
-						if (sUsername.length() == 0)
-							sUsername = "" + nUserid;
-						rs2.close();
-					}
-	
-					try {
-						readRecord(rs, tmpRecord, sUsername);
-					} catch (Exception ex) {
-						LOGGER.log(Level.WARNING, "Error reading record.", ex);
-					}
-					
-					if (n==0)
-						record = tmpRecord;
-					else
-						ancesters.add(tmpRecord);
-					n++;
-					uuid = tmpRecord.getSiteUuid();
-					rs.close();
-					closeStatement(st);
-				} else 
-					break;
+			try {
+				readRecord(rs, tmpRecord);
+			} catch (Exception ex) {
+				LOGGER.log(Level.WARNING, "Error reading record.", ex);
 			}
-		} finally {
-			closeStatement(st);
-			closeStatement(stUser);
+			children.add(tmpRecord);
+			n++;
+		}
+		rs.close();
+		closeStatement(st);
+	}
+
+	private void readAncesters(String ancesterSql, String uuid) throws SQLException {
+		// intitalize
+		ProvenanceRecord tmpRecord = null;
+		PreparedStatement st = null;
+		int n=0;
+		// re-initialize this array
+		ancesters = new ArrayList<ProvenanceRecord>();
+		
+		while (uuid != null && uuid != "" && n < 10) {
+			// prepare the statements
+			st = con.prepareStatement(ancesterSql);
+			st.setString(1, uuid);
+			
+			// execute the query
+			logExpression(ancesterSql);
+			ResultSet rs = st.executeQuery();
+
+			if (rs.next()) {
+				tmpRecord = new ProvenanceRecord();
+
+				try {
+					readRecord(rs, tmpRecord);
+				} catch (Exception ex) {
+					LOGGER.log(Level.WARNING, "Error reading record.", ex);
+				}
+				
+				if (n==0) {
+					record = tmpRecord;
+				} else
+					ancesters.add(tmpRecord);
+				n++;
+				uuid = tmpRecord.getSiteUuid();
+				rs.close();
+				closeStatement(st);
+			} else {
+				closeStatement(st);
+				break;
+			}
 		}
 	}
 
-	private void readRecord(ResultSet rs, ProvenanceRecord record, String ownername)
+	private void readRecord(ResultSet rs, ProvenanceRecord record)
 			throws SQLException, ParserConfigurationException, IOException,
 			SAXException, ProtocolParseException {
 		int n = 1;
@@ -182,9 +196,7 @@ public class ProvenanceQuery extends MmdRequest {
 		record.setSiteUuid(rs.getString(n++));
 		
 		// set the owner, approval status and publication method
-		// record.setOwnerName(rs.getString(n++));
-		n++;
-		record.setOwnerName(ownername);
+		record.setUserId(rs.getInt(n++));
 		record.setApprovalStatus(rs.getString(n++));
 		record.setPublicationMethod(rs.getString(n++));
 
@@ -243,23 +255,37 @@ public class ProvenanceQuery extends MmdRequest {
 		return record;
 	}
 
-	private void readUserInfo(ProvenanceRecord aRecord, String sUserDN) {
-		try {
-			User user = readUserProfile(sUserDN);
-			UserAttributeMap profile = user.getProfile();
-			aRecord.setEmail(profile.getEmailAddress());
-			aRecord.setDisplayName(profile.getValue("displayName"));
-			aRecord.setAffi(profile.getValue("affiliation"));
-			aRecord.setOrg(profile.getValue("organization"));
-		} catch (Exception e) {
-			e.printStackTrace();
+	private void readUserInfo(ProvenanceRecord aRecord) throws SQLException {
+		int nUserid = record.getUserId();
+		String sUserDN = "", sUsername = "";
+		PreparedStatement stUser = null;
+		stUser = con.prepareStatement("SELECT USERNAME, DN FROM " + tblImsUser
+				+ " WHERE USERID=?");
+		stUser.setInt(1, nUserid);
+		ResultSet rs2 = stUser.executeQuery();
+		if (rs2.next()) {
+			sUsername = Val.chkStr(rs2.getString(1));
+			sUserDN = Val.chkStr(rs2.getString(2));
+			if (sUsername.length() == 0)
+				sUsername = "" + nUserid;
+			try {
+				User user = readUserLdapProfile(sUserDN);
+				UserAttributeMap profile = user.getProfile();
+				aRecord.setOwnerName(sUsername);
+				aRecord.setEmail(profile.getEmailAddress());
+				aRecord.setDisplayName(profile.getValue("displayName"));
+				aRecord.setAffi(profile.getValue("affiliation"));
+				aRecord.setOrg(profile.getValue("organization"));
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
 		}
+		rs2.close();
+		closeStatement(stUser);
 	}
 	
 	/**
 	 * Reads user profile from ldap.
-	 * @param context the current request context (contains the active user)
-	 * @param request HTTP request.
 	 * @return user the user whose profile was read
 	 * @throws IdentityException if a system error occurs preventing the action
 	 * @throws NamingException if an LDAP naming exception occurs
@@ -267,8 +293,7 @@ public class ProvenanceQuery extends MmdRequest {
 	 * @throws CredentialsDeniedException 
 	 * @throws UnsupportedEncodingException 
 	 */
-	protected User readUserProfile(String sUserDN) 
-			throws Exception {
+	protected User readUserLdapProfile(String sUserDN) throws Exception {
 		
 		IdentityAdapter idAdapter = this.context.newIdentityAdapter();
 		IdentityConfiguration idConfig = this.context.getIdentityConfiguration();
