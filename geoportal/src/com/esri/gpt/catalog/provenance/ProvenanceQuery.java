@@ -62,6 +62,8 @@ public class ProvenanceQuery extends MmdRequest {
 	private ProvenanceRecord record;
 	private ArrayList<ProvenanceRecord> ancesters;
 	private ArrayList<ProvenanceRecord> children;
+	private int    childCount = 0;
+	private int    childDisplay = 0;
 
 	public ArrayList<ProvenanceRecord> getAncesters() {
 		return ancesters;
@@ -83,6 +85,22 @@ public class ProvenanceQuery extends MmdRequest {
 	 */
 	public void setChildren(ArrayList<ProvenanceRecord> children) {
 		this.children = children;
+	}
+
+	public int getChildCount() {
+		return childCount;
+	}
+
+	public void setChildCount(int childCount) {
+		this.childCount = childCount;
+	}
+
+	public int getChildDisplay() {
+		return childDisplay;
+	}
+
+	public void setChildDisplay(int childDisplay) {
+		this.childDisplay = childDisplay;
 	}
 
 	public void execute(String uuid) throws SQLException, IdentityException,
@@ -108,28 +126,30 @@ public class ProvenanceQuery extends MmdRequest {
 		
 		String ancesterSql = sbSql.toString() + " WHERE A.DOCUUID = ?";
 		String childrenSql = sbSql.toString() + " WHERE A.SITEUUID = ?";
+		String countSql = "SELECT COUNT (*) FROM " + getResourceTableName() + " A "
+				+ " WHERE A.SITEUUID = ?";
 
 		readAncesters(ancesterSql, uuid);
-		readChildren(childrenSql, uuid);
+		readChildren(childrenSql, countSql, uuid);
 		readUserInfo(record);
 	}
 
-	private void readChildren(String childrenSql, String uuid) throws SQLException {
+	private void readChildren(String childrenSql, String countSql, String uuid)
+			throws SQLException {
 		ProvenanceRecord tmpRecord = null;
 		PreparedStatement st = null;
-		int n = 0;
 		// re-initialize this array
 		children = new ArrayList<ProvenanceRecord>();
+		childDisplay = 0;
 		
-		// prepare the statements
+		// read children
 		st = con.prepareStatement(childrenSql);
 		st.setString(1, uuid);
 		
-		// execute the query
 		logExpression(childrenSql);
 		ResultSet rs = st.executeQuery();
 
-		while (rs.next() && n < 5) {
+		while (rs.next() && childDisplay < 5) {
 			tmpRecord = new ProvenanceRecord();
 
 			try {
@@ -138,10 +158,20 @@ public class ProvenanceQuery extends MmdRequest {
 				LOGGER.log(Level.WARNING, "Error reading record.", ex);
 			}
 			children.add(tmpRecord);
-			n++;
+			childDisplay++;
 		}
 		rs.close();
 		closeStatement(st);
+		
+		// count children
+		st = con.prepareStatement(countSql);
+		st.setString(1, uuid);
+		
+		logExpression(countSql);
+		rs = st.executeQuery();
+		if (rs.next()) {
+			setChildCount(rs.getInt(1));
+		}
 	}
 
 	private void readAncesters(String ancesterSql, String uuid) throws SQLException {
