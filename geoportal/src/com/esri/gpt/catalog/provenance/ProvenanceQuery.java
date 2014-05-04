@@ -2,7 +2,6 @@ package com.esri.gpt.catalog.provenance;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
-import java.net.URLDecoder;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -13,17 +12,17 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.naming.NamingException;
-import javax.servlet.http.HttpServletRequest;
 import javax.xml.parsers.ParserConfigurationException;
 
 import org.xml.sax.SAXException;
 
+import com.esri.gpt.catalog.arcims.GetDocumentRequest;
+import com.esri.gpt.catalog.arcims.ImsRequest;
+import com.esri.gpt.catalog.arcims.ImsServiceException;
 import com.esri.gpt.catalog.harvest.repository.HrRecord.HarvestFrequency;
 import com.esri.gpt.catalog.management.MmdEnums.PublicationMethod;
-import com.esri.gpt.catalog.management.MmdRecord;
 import com.esri.gpt.catalog.management.MmdRequest;
 import com.esri.gpt.control.webharvest.protocol.ProtocolParseException;
-import com.esri.gpt.framework.collection.StringAttributeMap;
 import com.esri.gpt.framework.context.RequestContext;
 import com.esri.gpt.framework.security.credentials.CredentialsDeniedException;
 import com.esri.gpt.framework.security.credentials.DistinguishedNameCredential;
@@ -37,6 +36,7 @@ import com.esri.gpt.framework.security.metadata.MetadataAcl;
 import com.esri.gpt.framework.security.principal.Groups;
 import com.esri.gpt.framework.security.principal.User;
 import com.esri.gpt.framework.security.principal.UserAttributeMap;
+import com.esri.gpt.framework.sql.IClobMutator;
 import com.esri.gpt.framework.sql.ManagedConnection;
 import com.esri.gpt.framework.util.DateProxy;
 import com.esri.gpt.framework.util.Val;
@@ -46,7 +46,7 @@ public class ProvenanceQuery extends MmdRequest {
 	private RequestContext context;
 	private Connection con;
 	
-	protected ProvenanceQuery(RequestContext requestContext) {
+	public ProvenanceQuery(RequestContext requestContext) {
 		super(requestContext, null, null, null);
 		this.context = requestContext;
 	}
@@ -59,7 +59,7 @@ public class ProvenanceQuery extends MmdRequest {
 	private String userDIT = "ou=users,ou=system";
 	private Groups allGroups = null;
 	private String tblImsUser;
-	private ProvenanceRecord record;
+	private ProvenanceRecord record = null;
 	private ArrayList<ProvenanceRecord> ancesters;
 	private ArrayList<ProvenanceRecord> children;
 	private int    childCount = 0;
@@ -117,17 +117,17 @@ public class ProvenanceQuery extends MmdRequest {
 
 		// start the SQL expression
 		StringBuilder sbSql = new StringBuilder();
-		sbSql.append("SELECT A.TITLE,A.DOCUUID,A.SITEUUID,A.OWNER");
-		sbSql.append(",A.APPROVALSTATUS,A.PUBMETHOD,A.UPDATEDATE,A.ACL");
-		sbSql.append(",A.ID,A.HOST_URL,A.FREQUENCY,A.SEND_NOTIFICATION,A.PROTOCOL");
-		sbSql.append(",A.FINDABLE,A.SEARCHABLE,A.SYNCHRONIZABLE");
-		sbSql.append(",A.FILEIDENTIFIER, A.SOURCEURI");
-		sbSql.append(" FROM ").append(getResourceTableName()).append(" A");
+		sbSql.append("SELECT A.TITLE,A.DOCUUID,A.SITEUUID,A.OWNER")
+			.append(",A.APPROVALSTATUS,A.PUBMETHOD,A.UPDATEDATE,A.ACL")
+			.append(",A.ID,A.HOST_URL,A.FREQUENCY,A.SEND_NOTIFICATION,A.PROTOCOL")
+			.append(",A.FINDABLE,A.SEARCHABLE,A.SYNCHRONIZABLE")
+			.append(",A.FILEIDENTIFIER, A.SOURCEURI")
+			.append(" FROM ").append(getResourceTableName()).append(" A");
 		
 		String ancesterSql = sbSql.toString() + " WHERE A.DOCUUID = ?";
 		String childrenSql = sbSql.toString() + " WHERE A.SITEUUID = ?";
-		String countSql = "SELECT COUNT (*) FROM " + getResourceTableName() + " A "
-				+ " WHERE A.SITEUUID = ?";
+		String countSql = "SELECT COUNT (*) FROM " + getResourceTableName() + 
+				" A WHERE A.SITEUUID = ?";
 
 		readAncesters(ancesterSql, uuid);
 		readChildren(childrenSql, countSql, uuid);
@@ -351,5 +351,52 @@ public class ProvenanceQuery extends MmdRequest {
 		}else{		
 			throw new Exception("error");	
 		}
+	}
+	
+	public String prepareForDownload(String uuid) throws Exception {
+		execute(uuid);
+		return readRecord(uuid);
+	}
+	
+	protected String readRecord(String uuid)
+			throws ImsServiceException, SQLException {
+		PreparedStatement st = null;
+		String sXml = null;
+		try {
+
+			ManagedConnection mc = returnConnection();
+			Connection con = mc.getJdbcConnection();
+			IClobMutator cm = mc.getClobMutator();
+
+			StringBuffer sql = new StringBuffer();
+			sql.append("SELECT UPDATEDATE")
+				.append(" FROM ").append(getResourceTableName())
+				.append(" WHERE DOCUUID=?");
+			logExpression(sql.toString());
+			st = con.prepareStatement(sql.toString());
+			st.setString(1, uuid);
+			ResultSet rs = st.executeQuery();
+			if (rs.next()) {
+
+				closeStatement(st);
+
+				sql = new StringBuffer();
+				sql.append("SELECT XML")
+					.append(" FROM ")
+					.append(getRequestContext().getCatalogConfiguration().getResourceDataTableName())
+					.append(" WHERE DOCUUID=?");
+				st = con.prepareStatement(sql.toString());
+				st.setString(1, uuid);
+				rs = st.executeQuery();
+
+				if (rs.next()) {
+					sXml = cm.get(rs, 1);
+				}
+			}
+
+		} finally {
+			closeStatement(st);
+		}
+		return sXml;
 	}
 }

@@ -22,6 +22,8 @@
 	String sRestUrl = request.getContextPath()
 			+ "/rest/document?f=html&id="
 			+ java.net.URLEncoder.encode(vmdUuid, "UTF-8");
+	String provenanceDownloadUrl = "downloadProvenance.jsp?uuid="
+			+ java.net.URLEncoder.encode(vmdUuid, "UTF-8");
 %>
 
 <%
@@ -85,9 +87,9 @@
 	rendered="#{not empty ProvenanceController.query.children}">
 	<f:facet name="header">
 		<h:outputText
-			value="Sample Derived Resources - 
+			value="Derived Resources - 
 			#{ProvenanceController.query.childDisplay} sample(s) from 
-			#{ProvenanceController.query.childCount} resource(s))" />
+			#{ProvenanceController.query.childCount} resource(s)" />
 	</f:facet>
 	<h:column>
 		<h:panelGrid columns="2" border="0" cellpadding="1" cellspacing="1">
@@ -120,6 +122,7 @@
 	// button section
 %>
 <f:verbatim>
+	<a href="<%=provenanceDownloadUrl%>">View XML</a>
 	<iframe class="section" src="<%=sRestUrl%>" width="100%" scrolling="no"
 		frameborder="0"></iframe>
 	<span class="note"><%=sRestUrl%></span>
