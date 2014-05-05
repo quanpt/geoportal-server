@@ -122,7 +122,7 @@
 	// button section
 %>
 <f:verbatim>
-	<a href="<%=provenanceDownloadUrl%>">View XML</a>
+	<br/><a href="<%=provenanceDownloadUrl%>">View XML</a>
 	<iframe class="section" src="<%=sRestUrl%>" width="100%" scrolling="no"
 		frameborder="0"></iframe>
 	<span class="note"><%=sRestUrl%></span>
